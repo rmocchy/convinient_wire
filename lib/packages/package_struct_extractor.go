@@ -105,11 +105,6 @@ func parseFieldType(fieldName string, fieldType types.Type) FieldInfo {
 	// Aliasを展開
 	fieldType = types.Unalias(fieldType)
 
-	// インターフェース型かどうかチェック
-	if _, ok := fieldType.(*types.Interface); ok {
-		info.IsInterface = true
-	}
-
 	// Named型の場合、パッケージパスと型名を取得
 	if named, ok := fieldType.(*types.Named); ok {
 		obj := named.Obj()
@@ -119,9 +114,20 @@ func parseFieldType(fieldName string, fieldType types.Type) FieldInfo {
 		if pkg := obj.Pkg(); pkg != nil {
 			info.PackagePath = pkg.Path()
 		}
+
+		// Named型の基底型がインターフェースかどうかチェック
+		underlying := types.Unalias(named.Underlying())
+		if _, ok := underlying.(*types.Interface); ok {
+			info.IsInterface = true
+		}
 	} else {
 		// Named型でない場合（基本型など）は型の文字列表現を使用
 		info.TypeName = fieldType.String()
+
+		// 直接インターフェース型かどうかチェック
+		if _, ok := fieldType.(*types.Interface); ok {
+			info.IsInterface = true
+		}
 	}
 
 	return info

@@ -44,34 +44,29 @@ func printStructAnalysis(t *testing.T, result *StructAnalysisResult, indent int)
 		}
 	}
 
-	for _, field := range result.Fields {
-		pointer := ""
-		if field.IsPointer {
-			pointer = "*"
-		}
+	for _, fieldNode := range result.Fields {
+		if structNode, ok := fieldNode.(*StructNode); ok {
+			// 構造体フィールドの場合
+			t.Logf("%s>%s ->", prefix, structNode.FieldName)
+			printStructAnalysis(t, structNode.Struct, indent+1)
+		} else if interfaceNode, ok := fieldNode.(*InterfaceNode); ok {
+			// インターフェースフィールドの場合
+			pointer := ""
+			if interfaceNode.IsPointer {
+				pointer = "*"
+			}
 
-		if field.IsInterface {
-			// インターフェースの場合
-			if field.InterfaceSkipped {
+			if interfaceNode.Skipped {
 				t.Logf("%s>%s -> %s%s -> [SKIPPED] %s",
-					prefix, field.Name, pointer, field.TypeName, field.InterfaceSkipReason)
-			} else if field.ResolvedStruct != nil {
+					prefix, interfaceNode.FieldName, pointer, interfaceNode.TypeName, interfaceNode.SkipReason)
+			} else if interfaceNode.ResolvedStruct != nil {
 				t.Logf("%s>%s -> %s%s ->",
-					prefix, field.Name, pointer, field.TypeName)
-				printStructAnalysis(t, field.ResolvedStruct, indent+1)
+					prefix, interfaceNode.FieldName, pointer, interfaceNode.TypeName)
+				printStructAnalysis(t, interfaceNode.ResolvedStruct, indent+1)
 			} else {
 				t.Logf("%s>%s -> %s%s",
-					prefix, field.Name, pointer, field.TypeName)
+					prefix, interfaceNode.FieldName, pointer, interfaceNode.TypeName)
 			}
-		} else if field.ResolvedStruct != nil {
-			// 構造体フィールドで解決できた場合
-			t.Logf("%s>%s ->",
-				prefix, field.Name)
-			printStructAnalysis(t, field.ResolvedStruct, indent+1)
-		} else {
-			// 基本型など
-			t.Logf("%s>%s -> %s%s",
-				prefix, field.Name, pointer, field.TypeName)
 		}
 	}
 }
@@ -128,34 +123,29 @@ func printStructAnalysisExample(result *StructAnalysisResult, indent int) {
 		}
 	}
 
-	for _, field := range result.Fields {
-		pointer := ""
-		if field.IsPointer {
-			pointer = "*"
-		}
+	for _, fieldNode := range result.Fields {
+		if structNode, ok := fieldNode.(*StructNode); ok {
+			// 構造体フィールドの場合
+			fmt.Printf("%s>%s ->\n", prefix, structNode.FieldName)
+			printStructAnalysisExample(structNode.Struct, indent+1)
+		} else if interfaceNode, ok := fieldNode.(*InterfaceNode); ok {
+			// インターフェースフィールドの場合
+			pointer := ""
+			if interfaceNode.IsPointer {
+				pointer = "*"
+			}
 
-		if field.IsInterface {
-			// インターフェースの場合
-			if field.InterfaceSkipped {
+			if interfaceNode.Skipped {
 				fmt.Printf("%s>%s -> %s%s -> [SKIPPED] %s\n",
-					prefix, field.Name, pointer, field.TypeName, field.InterfaceSkipReason)
-			} else if field.ResolvedStruct != nil {
+					prefix, interfaceNode.FieldName, pointer, interfaceNode.TypeName, interfaceNode.SkipReason)
+			} else if interfaceNode.ResolvedStruct != nil {
 				fmt.Printf("%s>%s -> %s%s ->\n",
-					prefix, field.Name, pointer, field.TypeName)
-				printStructAnalysisExample(field.ResolvedStruct, indent+1)
+					prefix, interfaceNode.FieldName, pointer, interfaceNode.TypeName)
+				printStructAnalysisExample(interfaceNode.ResolvedStruct, indent+1)
 			} else {
 				fmt.Printf("%s>%s -> %s%s\n",
-					prefix, field.Name, pointer, field.TypeName)
+					prefix, interfaceNode.FieldName, pointer, interfaceNode.TypeName)
 			}
-		} else if field.ResolvedStruct != nil {
-			// 構造体フィールドで解決できた場合
-			fmt.Printf("%s>%s ->\n",
-				prefix, field.Name)
-			printStructAnalysisExample(field.ResolvedStruct, indent+1)
-		} else {
-			// 基本型など
-			fmt.Printf("%s>%s -> %s%s\n",
-				prefix, field.Name, pointer, field.TypeName)
 		}
 	}
 }

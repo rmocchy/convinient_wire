@@ -78,7 +78,7 @@ func (wa *WireAnalyzer) analyzeStruct(packagePath, structName string) (*StructAn
 		StructName:    structName,
 		PackagePath:   packagePath,
 		InitFunctions: make([]InitFunctionInfo, 0),
-		Fields:        make([]FieldAnalysisResult, 0, len(fieldsInfo.Fields)),
+		Fields:        make([]FieldNode, 0, len(fieldsInfo.Fields)),
 	}
 
 	// キャッシュに登録（無限ループ防止のため、フィールド解析前に登録）
@@ -92,8 +92,10 @@ func (wa *WireAnalyzer) analyzeStruct(packagePath, structName string) (*StructAn
 
 	// 各フィールドを解析
 	for _, field := range fieldsInfo.Fields {
-		fieldResult := wa.analyzeField(field)
-		result.Fields = append(result.Fields, fieldResult)
+		fieldNode := wa.analyzeField(field)
+		if fieldNode != nil {
+			result.Fields = append(result.Fields, fieldNode)
+		}
 	}
 
 	return result, nil
@@ -129,40 +131,36 @@ func (wa *WireAnalyzer) findInitFunctions(packagePath, structName string) ([]Ini
 }
 
 // analyzeField はフィールドを解析する
-func (wa *WireAnalyzer) analyzeField(field packages.FieldInfo) FieldAnalysisResult {
-	result := FieldAnalysisResult{
-		Name:        field.Name,
-		TypeName:    field.TypeName,
-		PackagePath: field.PackagePath,
-		IsPointer:   field.IsPointer,
-		IsInterface: field.IsInterface,
-	}
-
-	// インターフェース型の場合、具体的な構造体に解決を試みる
+func (wa *WireAnalyzer) analyzeField(field packages.FieldInfo) FieldNode {
+	// インターフェース型の場合
 	if field.IsInterface {
 		resolvedStruct, skipReason := wa.resolveInterface(field)
-		if resolvedStruct != nil {
-			result.ResolvedStruct = resolvedStruct
-		} else if skipReason != "" {
-			result.InterfaceSkipped = true
-			result.InterfaceSkipReason = skipReason
-		}
-	} else if field.TypeName != "" && field.PackagePath != "" {
-		// 通常の構造体型の場合、再帰的に解析
-		// ただし、基本型やビルトイン型は除外
-		if !isBuiltinType(field.TypeName) {
-			resolvedStruct, err := wa.analyzeStruct(field.PackagePath, field.TypeName)
-			if err != nil {
-				// エラーの場合は解析をスキップ
-				result.InterfaceSkipped = true
-				result.InterfaceSkipReason = fmt.Sprintf("failed to analyze: %v", err)
-			} else {
-				result.ResolvedStruct = resolvedStruct
-			}
+		return &InterfaceNode{
+			FieldName:      field.Name,
+			TypeName:       field.TypeName,
+			PackagePath:    field.PackagePath,
+			IsPointer:      field.IsPointer,
+			ResolvedStruct: resolvedStruct,
+			Skipped:        skipReason != "",
+			SkipReason:     skipReason,
 		}
 	}
 
-	return result
+	// 構造体型の場合
+	if field.TypeName != "" && field.PackagePath != "" && !isBuiltinType(field.TypeName) {
+		resolvedStruct, err := wa.analyzeStruct(field.PackagePath, field.TypeName)
+		if err != nil {
+			// エラーの場合はnilを返す（スキップ）
+			return nil
+		}
+		return &StructNode{
+			FieldName: field.Name,
+			Struct:    resolvedStruct,
+		}
+	}
+
+	// 基本型などはスキップ（nilを返す）
+	return nil
 }
 
 // resolveInterface はインターフェースから具体的な構造体を解決する

@@ -3,7 +3,7 @@ package service
 import (
 	"fmt"
 
-	"github.com/rmocchy/convinient_wire/sample/basic-di/repository"
+	"github.com/rmocchy/convinient_wire/sample/basic/repository"
 )
 
 // UserService はユーザーサービスのインターフェース

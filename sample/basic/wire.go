@@ -5,9 +5,9 @@ package main
 
 import (
 	"github.com/google/wire"
-	"github.com/rmocchy/convinient_wire/sample/basic-di/handler"
-	"github.com/rmocchy/convinient_wire/sample/basic-di/repository"
-	"github.com/rmocchy/convinient_wire/sample/basic-di/service"
+	"github.com/rmocchy/convinient_wire/sample/basic/handler"
+	"github.com/rmocchy/convinient_wire/sample/basic/repository"
+	"github.com/rmocchy/convinient_wire/sample/basic/service"
 )
 
 type ControllerSet struct {

@@ -1,4 +1,4 @@
-module github.com/rmocchy/convinient_wire/sample/basic-di
+module github.com/rmocchy/convinient_wire/sample/basic
 
 go 1.25.1
 

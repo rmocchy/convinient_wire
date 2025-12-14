@@ -35,32 +35,43 @@ func printStructAnalysis(t *testing.T, result *StructAnalysisResult, indent int)
 		return
 	}
 
-	t.Logf("%sStruct: %s (Package: %s)", prefix, result.StructName, result.PackagePath)
+	t.Logf("%s%s (Package: %s)", prefix, result.StructName, result.PackagePath)
+
+	// 初期化関数を表示
+	if len(result.InitFunctions) > 0 {
+		for _, initFunc := range result.InitFunctions {
+			t.Logf("%s  [Init] %s (Package: %s)", prefix, initFunc.Name, initFunc.PackagePath)
+		}
+	}
 
 	for _, field := range result.Fields {
-		fieldPrefix := prefix + "  "
 		pointer := ""
 		if field.IsPointer {
 			pointer = "*"
 		}
 
 		if field.IsInterface {
-			t.Logf("%sField: %s %s%s (interface, Package: %s)",
-				fieldPrefix, field.Name, pointer, field.TypeName, field.PackagePath)
-
+			// インターフェースの場合
 			if field.InterfaceSkipped {
-				t.Logf("%s  -> [SKIPPED] %s", fieldPrefix, field.InterfaceSkipReason)
+				t.Logf("%s>%s -> %s%s -> [SKIPPED] %s",
+					prefix, field.Name, pointer, field.TypeName, field.InterfaceSkipReason)
 			} else if field.ResolvedStruct != nil {
-				t.Logf("%s  -> Resolved to:", fieldPrefix)
-				printStructAnalysis(t, field.ResolvedStruct, indent+3)
+				t.Logf("%s>%s -> %s%s ->",
+					prefix, field.Name, pointer, field.TypeName)
+				printStructAnalysis(t, field.ResolvedStruct, indent+1)
+			} else {
+				t.Logf("%s>%s -> %s%s",
+					prefix, field.Name, pointer, field.TypeName)
 			}
 		} else if field.ResolvedStruct != nil {
-			t.Logf("%sField: %s %s%s (Package: %s)",
-				fieldPrefix, field.Name, pointer, field.TypeName, field.PackagePath)
-			printStructAnalysis(t, field.ResolvedStruct, indent+2)
+			// 構造体フィールドで解決できた場合
+			t.Logf("%s>%s ->",
+				prefix, field.Name)
+			printStructAnalysis(t, field.ResolvedStruct, indent+1)
 		} else {
-			t.Logf("%sField: %s %s%s (Package: %s)",
-				fieldPrefix, field.Name, pointer, field.TypeName, field.PackagePath)
+			// 基本型など
+			t.Logf("%s>%s -> %s%s",
+				prefix, field.Name, pointer, field.TypeName)
 		}
 	}
 }
@@ -108,32 +119,43 @@ func printStructAnalysisExample(result *StructAnalysisResult, indent int) {
 		return
 	}
 
-	fmt.Printf("%sStruct: %s\n", prefix, result.StructName)
+	fmt.Printf("%s%s (Package: %s)\n", prefix, result.StructName, result.PackagePath)
+
+	// 初期化関数を表示
+	if len(result.InitFunctions) > 0 {
+		for _, initFunc := range result.InitFunctions {
+			fmt.Printf("%s  [Init] %s (Package: %s)\n", prefix, initFunc.Name, initFunc.PackagePath)
+		}
+	}
 
 	for _, field := range result.Fields {
-		fieldPrefix := prefix + "  "
 		pointer := ""
 		if field.IsPointer {
 			pointer = "*"
 		}
 
 		if field.IsInterface {
-			fmt.Printf("%sField: %s %s%s (interface)\n",
-				fieldPrefix, field.Name, pointer, field.TypeName)
-
+			// インターフェースの場合
 			if field.InterfaceSkipped {
-				fmt.Printf("%s  -> [SKIPPED] %s\n", fieldPrefix, field.InterfaceSkipReason)
+				fmt.Printf("%s>%s -> %s%s -> [SKIPPED] %s\n",
+					prefix, field.Name, pointer, field.TypeName, field.InterfaceSkipReason)
 			} else if field.ResolvedStruct != nil {
-				fmt.Printf("%s  -> Resolved to:\n", fieldPrefix)
-				printStructAnalysisExample(field.ResolvedStruct, indent+3)
+				fmt.Printf("%s>%s -> %s%s ->\n",
+					prefix, field.Name, pointer, field.TypeName)
+				printStructAnalysisExample(field.ResolvedStruct, indent+1)
+			} else {
+				fmt.Printf("%s>%s -> %s%s\n",
+					prefix, field.Name, pointer, field.TypeName)
 			}
 		} else if field.ResolvedStruct != nil {
-			fmt.Printf("%sField: %s %s%s\n",
-				fieldPrefix, field.Name, pointer, field.TypeName)
-			printStructAnalysisExample(field.ResolvedStruct, indent+2)
+			// 構造体フィールドで解決できた場合
+			fmt.Printf("%s>%s ->\n",
+				prefix, field.Name)
+			printStructAnalysisExample(field.ResolvedStruct, indent+1)
 		} else {
-			fmt.Printf("%sField: %s %s%s\n",
-				fieldPrefix, field.Name, pointer, field.TypeName)
+			// 基本型など
+			fmt.Printf("%s>%s -> %s%s\n",
+				prefix, field.Name, pointer, field.TypeName)
 		}
 	}
 }

@@ -5,6 +5,7 @@ import (
 
 	file "github.com/rmocchy/convinient_wire/internal/files"
 	"github.com/rmocchy/convinient_wire/internal/packages"
+	gopkgs "golang.org/x/tools/go/packages"
 )
 
 // WireAnalyzer はwire.goの解析を行う
@@ -74,13 +75,20 @@ func (wa *WireAnalyzer) analyzeStruct(packagePath, structName string) (*StructAn
 	}
 
 	result := &StructAnalysisResult{
-		StructName:  structName,
-		PackagePath: packagePath,
-		Fields:      make([]FieldAnalysisResult, 0, len(fieldsInfo.Fields)),
+		StructName:    structName,
+		PackagePath:   packagePath,
+		InitFunctions: make([]InitFunctionInfo, 0),
+		Fields:        make([]FieldAnalysisResult, 0, len(fieldsInfo.Fields)),
 	}
 
 	// キャッシュに登録（無限ループ防止のため、フィールド解析前に登録）
 	wa.analyzed[cacheKey] = result
+
+	// 初期化関数を探す
+	initFuncs, err := wa.findInitFunctions(packagePath, structName)
+	if err == nil {
+		result.InitFunctions = initFuncs
+	}
 
 	// 各フィールドを解析
 	for _, field := range fieldsInfo.Fields {
@@ -89,6 +97,35 @@ func (wa *WireAnalyzer) analyzeStruct(packagePath, structName string) (*StructAn
 	}
 
 	return result, nil
+}
+
+// findInitFunctions は構造体を返す初期化関数を探す
+func (wa *WireAnalyzer) findInitFunctions(packagePath, structName string) ([]InitFunctionInfo, error) {
+	// パッケージを読み込む
+	cfg := &gopkgs.Config{
+		Mode: gopkgs.NeedName | gopkgs.NeedFiles | gopkgs.NeedImports |
+			gopkgs.NeedDeps | gopkgs.NeedTypes | gopkgs.NeedSyntax | gopkgs.NeedTypesInfo,
+		Dir: wa.workDir,
+	}
+
+	pkgs, err := gopkgs.Load(cfg, wa.searchPattern)
+	if err != nil {
+		return nil, err
+	}
+
+	// 構造体を返す関数を探す
+	functions := packages.FindFunctionsReturningStruct(structName, packagePath, pkgs)
+
+	// InitFunctionInfoに変換
+	initFuncs := make([]InitFunctionInfo, 0, len(functions))
+	for _, fn := range functions {
+		initFuncs = append(initFuncs, InitFunctionInfo{
+			Name:        fn.Name,
+			PackagePath: fn.PackagePath,
+		})
+	}
+
+	return initFuncs, nil
 }
 
 // analyzeField はフィールドを解析する
